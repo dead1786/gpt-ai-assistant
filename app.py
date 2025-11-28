@@ -104,7 +104,7 @@ def ai_evaluate(q1, q2, q3):
         return "AI 連線錯誤：Gemini API Key 遺失或格式錯誤。"
         
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
     你現在是一位專業、嚴格且務實的技術維運主管。請針對以下員工的考核問卷回答，進行評估：
