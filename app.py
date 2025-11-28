@@ -81,9 +81,9 @@ def save_assessment(name, q1, q2, q3, ai_result, score, assessment_sheet):
     assessment_sheet.append_row([timestamp, name, q1, q2, q3, ai_result, score])
 
 @st.cache_data(ttl=60)
-def get_assessment_records(assessment_sheet):
+def get_assessment_records(_assessment_sheet): # 參數前加上底線
     """讀取所有考核紀錄"""
-    records = assessment_sheet.get_all_records()
+    records = _assessment_sheet.get_all_records() # 內部變數也要同步更新
     return pd.DataFrame(records)
 
 # ==========================================
