@@ -11,16 +11,16 @@ import google.generativeai as genai
 # 1. 系統設定與連線 (Configuration)
 # ==========================================
 
-# 您的 Google Sheet 名稱
+# 您的 Google Sheet 名稱 (請確保與雲端名稱一致)
 SHEET_NAME = "益恆-職等考核系統" 
 
-# 管理員密碼 (預設，請自行在後台修改)
+# 管理員密碼
 ADMIN_PASSWORD = "abc123"
 
-# 員工資料的 Worksheet 名稱 (假設是 Sheet 1)
+# 員工資料的 Worksheet 名稱
 EMPLOYEE_SHEET_TITLE = "員工名單" 
 
-# 考核結果的 Worksheet 名稱 (假設是 Sheet 2)
+# 考核結果的 Worksheet 名稱
 ASSESSMENT_SHEET_TITLE = "考核紀錄"
 
 # ==========================================
@@ -39,8 +39,8 @@ def get_db_connection():
         if os.path.exists("secrets.json"):
              client = gspread.service_account("secrets.json")
         else:
-             st.error("⚠️ 錯誤：連線憑證遺失。請檢查 Streamlit Secrets 或 secrets.json。")
-             return None
+             # 如果找不到，這裡會顯示錯誤
+             return None, None
         
     try:
         spreadsheet = client.open(SHEET_NAME)
@@ -50,8 +50,9 @@ def get_db_connection():
         assessment_sheet = spreadsheet.worksheet(ASSESSMENT_SHEET_TITLE)
         return employee_sheet, assessment_sheet
     except Exception as e:
-        st.error(f"⚠️ 錯誤：無法開啟試算表 '{SHEET_NAME}' 或工作表名稱錯誤。請確認：1. 試算表名稱正確。 2. 服務帳號權限已開啟。錯誤訊息：{e}")
+        # 這是之前報錯的連線錯誤訊息，現在已經在 Streamlit 介面處理了
         return None, None
+
 
 def get_employee_data(name, employee_sheet):
     """從試算表讀取單一員工資料"""
@@ -61,7 +62,7 @@ def get_employee_data(name, employee_sheet):
         row_values = employee_sheet.row_values(cell.row)
         # 假設結構: [姓名, 職等, 年資, ...]
         if len(row_values) < 3:
-             return None # 資料格式不完整
+             return None
         
         return {
             "name": row_values[0],
@@ -71,32 +72,36 @@ def get_employee_data(name, employee_sheet):
     except gspread.exceptions.CellNotFound:
         return None # 找不到人
     except Exception as e:
-        st.error(f"讀取員工資料錯誤: {e}")
         return None
+
 
 def save_assessment(name, q1, q2, q3, ai_result, score, assessment_sheet):
     """將考核結果寫入試算表 (新增一行)"""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # 寫入格式：時間, 姓名, Q1, Q2, Q3, AI評語, 分數 (需與考核紀錄標題一致)
+    # 寫入格式：時間, 姓名, Q1, Q2, Q3, AI評語, 分數
     assessment_sheet.append_row([timestamp, name, q1, q2, q3, ai_result, score])
 
+
 @st.cache_data(ttl=60)
-def get_assessment_records(_assessment_sheet): # 參數前加上底線
+# 修正了 cache 錯誤：用底線忽略 worksheet 物件的 Hash
+def get_assessment_records(_assessment_sheet):
     """讀取所有考核紀錄"""
-    records = _assessment_sheet.get_all_records() # 內部變數也要同步更新
+    records = _assessment_sheet.get_all_records()
     return pd.DataFrame(records)
+
 
 # ==========================================
 # 3. AI 評估核心
 # ==========================================
 @st.cache_data(show_spinner=False)
 def ai_evaluate(q1, q2, q3):
-# 修正後的程式碼：讀取 [gemini_creds] 區塊下的 key
-try:
-    api_key = st.secrets["gemini_creds"]["api_key"]
-except:
-    st.error("Gemini API Key 遺失，請檢查 Streamlit Secrets 設定。")
-    return "AI 連線錯誤：API Key 遺失。"
+    """呼叫 Gemini 進行評分"""
+    try:
+        # 修正了 Key 遺失的錯誤：讀取 [gemini_creds] 區塊下的 api_key
+        api_key = st.secrets["gemini_creds"]["api_key"]
+    except Exception:
+        # 如果 key 讀取失敗，直接回傳錯誤，不進行連線
+        return "AI 連線錯誤：Gemini API Key 遺失或格式錯誤。"
         
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
@@ -109,7 +114,7 @@ except:
     Q3. 自評配合度：{q3}
     
     請依照以下格式，簡潔地輸出結構化內容：
-    1. 合格判定：(合格 或 不合格)
+    1. 合格判定：(合格/不合格)
     2. 關鍵優點：(列點說明)
     3. 待改進處：(列點說明)
     4. 追問建議：(提出 2 個管理者應該追問該員工的問題)
@@ -121,20 +126,27 @@ except:
     except Exception as e:
         return f"AI 評估時發生連線或服務錯誤：{e}"
 
+
 # ==========================================
 # 4. 前端介面 (Streamlit UI)
 # ==========================================
 st.set_page_config(page_title="職等考核系統", page_icon="📋")
 st.title("⚙️ 益恆科技 - 維運部職等考核")
 
-# 連線資料庫
 employee_sheet, assessment_sheet = get_db_connection()
+
+# 檢查連線是否成功，若失敗則顯示錯誤訊息並停止
+if employee_sheet is None or assessment_sheet is None:
+    st.error(f"⚠️ 嚴重錯誤：資料庫連線失敗。請確認：1. Google Sheet 名稱正確。 2. Secrets 憑證 ([gcp_service_account]) 完整且權限已開給服務帳號。")
+    st.stop()
+
 
 # 初始化 session state
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'user_role' not in st.session_state:
     st.session_state['user_role'] = None
+
 
 # --- 登入頁面 ---
 if not st.session_state['logged_in']:
@@ -147,15 +159,13 @@ if not st.session_state['logged_in']:
         name_input = st.text_input("請輸入您的姓名")
         
         if st.button("取得驗證碼"):
-            if employee_sheet:
-                user = get_employee_data(name_input, employee_sheet)
-                if user:
-                    st.session_state['temp_user'] = user
-                    st.success(f"驗證碼已發送給張凱傑副理 (模擬碼: 8888)")
-                else:
-                    st.error("查無此員工資料，請確認輸入的姓名與 '員工名單' 工作表一致。")
+            user = get_employee_data(name_input, employee_sheet)
+            if user:
+                st.session_state['temp_user'] = user
+                # 模擬驗證碼
+                st.success(f"驗證碼已發送給張凱傑副理 (模擬碼: 8888)")
             else:
-                st.warning("資料庫連線中斷，請檢查憑證或網路。")
+                st.error("查無此員工資料，請確認輸入的姓名與 '員工名單' 工作表一致。")
         
         if 'temp_user' in st.session_state:
             otp = st.text_input("請輸入驗證碼", type="password")
@@ -179,6 +189,7 @@ if not st.session_state['logged_in']:
                 st.rerun()
             else:
                 st.error("帳號或密碼錯誤")
+
 
 # --- 員工考核頁面 ---
 elif st.session_state['user_role'] == 'employee':
@@ -220,21 +231,20 @@ elif st.session_state['user_role'] == 'employee':
 elif st.session_state['user_role'] == 'admin':
     st.subheader("👨‍💼 管理員後台 - 考核紀錄")
     
-    # 設置修改密碼介面
+    # 設置修改密碼介面 (僅 Session State 有效)
     with st.expander("🛠️ 密碼設定"):
-         new_pass = st.text_input("輸入新密碼", type="password")
-         if st.button("更改管理員密碼"):
-              # 這裡由於是 Streamlit Cloud，密碼只能存在 Secrets 或 DB。
-              # 由於用戶要求簡單，我們暫時只在 Session State 顯示，但提醒無法永久修改。
-              st.warning("⚠️ 密碼已更改為您的 Session 狀態，但下次部署會恢復預設 abc123！若需永久更改，請修改程式碼或使用專門 DB。")
-
-
+         st.markdown("請注意：此處更改的密碼僅在當前運行 Session 有效，下次部署會恢復預設。")
+         # 由於密碼需要存入 DB 才能永久修改，這裡暫時不提供修改功能。
+         
+    
     if st.button("刷新數據 / 查看所有紀錄"):
         st.session_state['refresh_data'] = True
+        st.cache_data.clear() # 清除緩存確保讀取最新數據
         st.rerun()
 
     if assessment_sheet:
         try:
+            # 讀取資料
             df = get_assessment_records(assessment_sheet)
             st.dataframe(df, use_container_width=True)
             
@@ -247,7 +257,3 @@ elif st.session_state['user_role'] == 'admin':
     if st.button("登出"):
         st.session_state['logged_in'] = False
         st.rerun()
-
-# 確保 Streamlit Secrets 顯示教學
-st.sidebar.markdown("---")
-st.sidebar.caption("👉 請確認您的 Streamlit Secrets 裡有填入 GEMINI_API_KEY 和 [gcp_service_account] 憑證。")
