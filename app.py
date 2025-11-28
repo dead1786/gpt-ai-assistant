@@ -1,1 +1,41 @@
-Šjh®Û-­æ¦–+Z²Ëbšš+¶–§u«²—bšš+¶)­æ~º&‚Š •jëaÜ®øœ{öœr‹§¶)©¢»B­ç^Øš–È¦¦Ší‚Š •zw«jØ¯y¨š²§j(¦¦Ší¶)Šjh®ÚÚÚ&
+export interface Employee {
+  name: string;
+  startDate: string;
+  title: string;
+  tenure: number;
+  grade: string; // 'æœªå®š' or number string
+  isAdmin: boolean;
+  canAssess: boolean; // æ˜¯å¦é–‹æ”¾å¡«å¯«å•å·
+  customQuestion?: string; // ç®¡ç†è€…è‡ªè¨‚è€ƒé¡Œ
+}
+
+export interface Submission {
+  employeeName: string;
+  challenge: string;
+  sopSuggestion: string;
+  customAnswer?: string; // å›ç­”è‡ªè¨‚è€ƒé¡Œ
+  selfRating: number;
+  submittedAt: string;
+  aiEvaluation?: AiEvaluation;
+}
+
+export interface AiEvaluation {
+  isPassed: boolean;
+  pros: string[];
+  cons: string[];
+  followUpQuestions: string[];
+  score: number;
+  summary: string;
+}
+
+export interface LoginRequest {
+  employeeName: string;
+  otp: string;
+  requestedAt: number;
+}
+
+export enum AppView {
+  LOGIN = 'LOGIN',
+  USER_DASHBOARD = 'USER_DASHBOARD',
+  ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
+}
