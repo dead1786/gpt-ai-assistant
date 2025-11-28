@@ -249,8 +249,8 @@ if not st.session_state['logged_in']:
                         st.error("驗證碼錯誤")
 
     else: # 管理員
-        admin_user = st.text_input("管理員帳號 (張凱傑)")
-        admin_pass = st.text_input("密碼 (預設: abc123)", type="password")
+        admin_user = st.text_input("管理員帳號")
+        admin_pass = st.text_input("密碼", type="password")
         if st.button("管理員登入"):
             if admin_user == "張凱傑" and admin_pass == ADMIN_PASSWORD:
                 st.session_state['logged_in'] = True
