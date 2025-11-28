@@ -12,7 +12,7 @@ import google.generativeai as genai
 # ==========================================
 
 # 您的 Google Sheet 名稱
-SHEET_NAME = "益恆科技_考核系統_DB" 
+SHEET_NAME = "益恆-職等考核系統" 
 
 # 管理員密碼 (預設，請自行在後台修改)
 ADMIN_PASSWORD = "abc123"
