@@ -91,13 +91,12 @@ def get_assessment_records(_assessment_sheet): # 參數前加上底線
 # ==========================================
 @st.cache_data(show_spinner=False)
 def ai_evaluate(q1, q2, q3):
-    """呼叫 Gemini 進行評分"""
-    try:
-        # 嘗試從 Streamlit Secrets 讀取 API Key
-        api_key = st.secrets["GEMINI_API_KEY"]
-    except:
-        st.error("Gemini API Key 遺失，請檢查 Streamlit Secrets 設定。")
-        return "AI 連線錯誤：API Key 遺失。"
+# 修正後的程式碼：讀取 [gemini_creds] 區塊下的 key
+try:
+    api_key = st.secrets["gemini_creds"]["api_key"]
+except:
+    st.error("Gemini API Key 遺失，請檢查 Streamlit Secrets 設定。")
+    return "AI 連線錯誤：API Key 遺失。"
         
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
